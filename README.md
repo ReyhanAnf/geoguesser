@@ -1,36 +1,131 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# GeoGuesser AI 🌍
 
-## Getting Started
+A web-based geography game where players guess the location of photos from around the world. Built with Next.js, Tailwind CSS, and Leaflet.
 
-First, run the development server:
+## Features ✨
 
+- 🖼️ Random location images from Unsplash
+- 🗺️ Interactive world map for guessing
+- 📊 Score calculation based on distance
+- 🏆 Local leaderboard using localStorage
+- 🌙 Dark mode support
+- 📱 Responsive design for all devices
+- 🇮🇩 Indonesian language interface
+
+## Getting Started 🚀
+
+1. Clone the repository:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/yourusername/geoguesser.git
+cd geoguesser
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies:
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+3. Run the development server:
+```bash
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+4. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## Learn More
+## Tech Stack 🛠️
 
-To learn more about Next.js, take a look at the following resources:
+- Next.js 14
+- React 18
+- Tailwind CSS
+- Framer Motion
+- Leaflet
+- Unsplash API
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project Structure 📁
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+src/
+├── app/
+│   ├── game/
+│   │   └── page.js
+│   ├── leaderboard/
+│   │   └── page.js
+│   ├── layout.js
+│   ├── page.js
+│   └── globals.css
+```
 
-## Deploy on Vercel
+## Contributing 🤝
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## License 📄
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+---
+
+# GeoGuesser AI 🌍
+
+Permainan geografi berbasis web di mana pemain menebak lokasi foto dari seluruh dunia. Dibangun dengan Next.js, Tailwind CSS, dan Leaflet.
+
+## Fitur ✨
+
+- 🖼️ Gambar lokasi acak dari Unsplash
+- 🗺️ Peta dunia interaktif untuk menebak
+- 📊 Perhitungan skor berdasarkan jarak
+- 🏆 Papan peringkat lokal menggunakan localStorage
+- 🌙 Dukungan mode gelap
+- 📱 Desain responsif untuk semua perangkat
+- 🇮🇩 Antarmuka dalam Bahasa Indonesia
+
+## Memulai 🚀
+
+1. Clone repositori:
+```bash
+git clone https://github.com/yourusername/geoguesser.git
+cd geoguesser
+```
+
+2. Install dependensi:
+```bash
+npm install
+```
+
+3. Jalankan server pengembangan:
+```bash
+npm run dev
+```
+
+4. Buka [http://localhost:3000](http://localhost:3000) di browser Anda.
+
+## Teknologi yang Digunakan 🛠️
+
+- Next.js 14
+- React 18
+- Tailwind CSS
+- Framer Motion
+- Leaflet
+- Unsplash API
+
+## Struktur Proyek 📁
+
+```
+src/
+├── app/
+│   ├── game/
+│   │   └── page.js
+│   ├── leaderboard/
+│   │   └── page.js
+│   ├── layout.js
+│   ├── page.js
+│   └── globals.css
+```
+
+## Berkontribusi 🤝
+
+Kontribusi sangat diterima! Silakan ajukan Pull Request.
+
+## Lisensi 📄
+
+Proyek ini dilisensikan di bawah Lisensi MIT - lihat file LICENSE untuk detailnya.
