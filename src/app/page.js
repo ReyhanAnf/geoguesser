@@ -155,7 +155,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="bg-emerald-800 text-white py-8">
         <div className="max-w-6xl mx-auto px-4 text-center">
-          <p className="mb-4">Dikembangkan dengan ❤️ menggunakan Cursor AI</p>
+          <p className="mb-4">Dikembangkan oleh Reyhan dengan menggunakan Cursor AI</p>
           <p className="text-sm text-emerald-200">
             © {new Date().getFullYear()} GeoGuesser AI. Semua gambar digunakan di bawah lisensi Creative Commons.
           </p>
