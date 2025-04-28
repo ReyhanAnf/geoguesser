@@ -4,11 +4,12 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import useSound from 'use-sound';
-import { Share2, Trophy, BarChart2, Globe } from 'lucide-react';
+import { Share2, Trophy, BarChart2, Globe, Star, Zap, Clock } from 'lucide-react';
 
 // Import sound effects
 const correctSound = '/sounds/correct.mp3';
 const wrongSound = '/sounds/wrong.mp3';
+const gameCompleteSound = '/sounds/game-complete.mp3';
 
 // Daftar lengkap negara dan bendera
 const countries = [
@@ -266,6 +267,28 @@ const heroTexts = [
   "Belajar Sambil Bermain"
 ];
 
+// Add these constants at the top of the file, after the imports
+const DIFFICULTY_SETTINGS = {
+  easy: {
+    questions: 5,
+    timePerQuestion: 30,
+    pointsPerCorrect: 10,
+    streakBonus: 5
+  },
+  medium: {
+    questions: 10,
+    timePerQuestion: 20,
+    pointsPerCorrect: 15,
+    streakBonus: 10
+  },
+  hard: {
+    questions: 20,
+    timePerQuestion: 15,
+    pointsPerCorrect: 20,
+    streakBonus: 15
+  }
+};
+
 export default function Home() {
   const [gameStarted, setGameStarted] = useState(false);
   const [currentCountry, setCurrentCountry] = useState(null);
@@ -279,10 +302,18 @@ export default function Home() {
   const [answerOptions, setAnswerOptions] = useState([]);
   const [playCorrect] = useSound(correctSound);
   const [playWrong] = useSound(wrongSound);
+  const [playGameComplete] = useSound(gameCompleteSound);
+  const [showGameComplete, setShowGameComplete] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isCorrect, setIsCorrect] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [difficulty, setDifficulty] = useState('medium');
+  const [maxQuestions, setMaxQuestions] = useState(DIFFICULTY_SETTINGS.medium.questions);
+  const [timePerQuestion, setTimePerQuestion] = useState(DIFFICULTY_SETTINGS.medium.timePerQuestion);
+  const [pointsPerCorrect, setPointsPerCorrect] = useState(DIFFICULTY_SETTINGS.medium.pointsPerCorrect);
+  const [streakBonus, setStreakBonus] = useState(DIFFICULTY_SETTINGS.medium.streakBonus);
+  const [currentStreak, setCurrentStreak] = useState(0);
+  const [maxStreak, setMaxStreak] = useState(0);
   const [gameStats, setGameStats] = useState({
     totalGames: 0,
     totalScore: 0,
@@ -293,6 +324,7 @@ export default function Home() {
   const [showStats, setShowStats] = useState(false);
   const [currentFact, setCurrentFact] = useState(0);
   const [currentHeroText, setCurrentHeroText] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(timePerQuestion);
 
   // Load leaderboard dari localStorage
   useEffect(() => {
@@ -333,10 +365,34 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []);
 
+  // Add this useEffect for the timer
+  useEffect(() => {
+    let timer;
+    if (gameStarted && timeLeft > 0 && !showAnswer) {
+      timer = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            handleGuess(''); // Auto-submit when time runs out
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [gameStarted, timeLeft, showAnswer]);
+
   const startGame = () => {
     if (!playerName.trim()) return;
     setShowNameInput(false);
     setGameStarted(true);
+    setScore(0);
+    setRound(1);
+    setCurrentStreak(0);
+    setMaxStreak(0);
+    setTimeLeft(timePerQuestion);
+    setMaxQuestions(DIFFICULTY_SETTINGS[difficulty].questions);
     loadNewCountry();
   };
 
@@ -354,7 +410,7 @@ export default function Home() {
   };
 
   const handleGuess = (guess) => {
-    if (!currentCountry) return;
+    if (!currentCountry || showAnswer) return;
     
     setUserGuess(guess);
     setShowAnswer(true);
@@ -362,39 +418,35 @@ export default function Home() {
     const isCorrect = guess.toLowerCase() === currentCountry.name.toLowerCase();
     
     if (isCorrect) {
-      setScore(score + 1);
+      const basePoints = pointsPerCorrect;
+      const streakPoints = currentStreak * streakBonus;
+      const totalPoints = basePoints + streakPoints;
+      
+      setScore(score + totalPoints);
+      setCurrentStreak(currentStreak + 1);
+      setMaxStreak(Math.max(maxStreak, currentStreak + 1));
       setIsCorrect(true);
       setShowConfetti(true);
       playCorrect();
-      setTimeout(() => {
-        setShowConfetti(false);
-      }, 2000);
     } else {
+      setCurrentStreak(0);
       setIsCorrect(false);
       playWrong();
     }
 
-    updateStats(isCorrect, currentCountry.name);
-
     setTimeout(() => {
-      if (round < 10) {
+      if (round < maxQuestions) {
         setRound(round + 1);
+        setTimeLeft(timePerQuestion);
+        setShowAnswer(false);
+        setShowConfetti(false);
         loadNewCountry();
       } else {
-        const newScore = {
-          name: playerName,
-          score: score + (isCorrect ? 1 : 0),
-          date: new Date().toLocaleDateString()
-        };
-        setLeaderboard(prev => {
-          const updated = [...prev, newScore]
-            .sort((a, b) => b.score - a.score)
-            .slice(0, 5);
-          return updated;
-        });
-        setGameStarted(false);
-        setRound(1);
-        setScore(0);
+        setShowGameComplete(true);
+        playGameComplete();
+        setTimeout(() => {
+          endGame();
+        }, 3000);
       }
     }, 2000);
   };
@@ -466,8 +518,36 @@ export default function Home() {
     }
   };
 
+  const endGame = () => {
+    // Update leaderboard with current score
+    if (playerName && score > 0) {
+      const newScore = {
+        name: playerName,
+        score: score,
+        date: new Date().toLocaleDateString()
+      };
+      
+      setLeaderboard(prev => {
+        const updated = [...prev, newScore]
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 5);
+        return updated;
+      });
+    }
+
+    // Reset game state
+    setGameStarted(false);
+    setShowAnswer(false);
+    setShowConfetti(false);
+    setShowGameComplete(false);
+    setCurrentStreak(0);
+    setTimeLeft(timePerQuestion);
+    setUserGuess('');
+    setCurrentCountry(null);
+  };
+
   return (
-    <main className="min-h-screen p-4 md:p-8 bg-gradient-to-br from-black via-emerald-900 to-cyan-500">
+    <main className="min-h-screen p-4 md:p-8 bg-gradient-to-br from-black via-cyan-900 to-cyan-500">
       <div className="max-w-6xl mx-auto">
         {/* Hero Section */}
         <motion.div
@@ -477,7 +557,14 @@ export default function Home() {
         >
           {/* Background Pattern */}
           <div className="absolute inset-0 overflow-hidden">
-            <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
+            <div 
+              className="absolute inset-0"
+              style={{
+                backgroundImage: `linear-gradient(to right, rgba(0, 255, 255, 0.1) 1px, transparent 1px),
+                                 linear-gradient(to bottom, rgba(0, 255, 255, 0.1) 1px, transparent 1px)`,
+                backgroundSize: '20px 20px'
+              }}
+            />
             <div className="absolute inset-0 bg-gradient-to-b from-black/50 to-transparent" />
           </div>
 
@@ -690,18 +777,29 @@ export default function Home() {
           >
             <h2 className="text-2xl font-semibold mb-4 text-white">Pilih Tingkat Kesulitan</h2>
             <div className="grid grid-cols-3 gap-4">
-              {['easy', 'medium', 'hard'].map((level) => (
-                <button
+              {Object.entries(DIFFICULTY_SETTINGS).map(([level, settings]) => (
+                <motion.button
                   key={level}
-                  onClick={() => setDifficulty(level)}
+                  onClick={() => {
+                    setDifficulty(level);
+                    setMaxQuestions(settings.questions);
+                    setTimePerQuestion(settings.timePerQuestion);
+                    setPointsPerCorrect(settings.pointsPerCorrect);
+                    setStreakBonus(settings.streakBonus);
+                  }}
                   className={`py-2 px-4 rounded-lg transition-all ${
                     difficulty === level
                       ? 'bg-gradient-to-r from-emerald-500 to-cyan-300 text-emerald-100'
                       : 'bg-emerald-900/30 text-emerald-100 hover:bg-emerald-800/30'
                   }`}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                 >
-                  {level.charAt(0).toUpperCase() + level.slice(1)}
-                </button>
+                  <div className="flex flex-col items-center">
+                    <span className="capitalize">{level}</span>
+                    <span className="text-sm opacity-80">{settings.questions} soal</span>
+                  </div>
+                </motion.button>
               ))}
             </div>
           </motion.div>
@@ -761,36 +859,54 @@ export default function Home() {
           </motion.div>
         )}
 
+        {/* Game Stats Bar */}
+        {gameStarted && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass-card max-w-2xl mx-auto p-4 mb-4 flex justify-between items-center"
+          >
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center">
+                <Star className="w-5 h-5 text-yellow-400 mr-1" />
+                <span className="text-emerald-100">Score: {score}</span>
+              </div>
+              <div className="flex items-center">
+                <Zap className="w-5 h-5 text-cyan-400 mr-1" />
+                <span className="text-emerald-100">Streak: {currentStreak}</span>
+              </div>
+              <div className="flex items-center">
+                <Clock className="w-5 h-5 text-red-400 mr-1" />
+                <span className="text-emerald-100">{timeLeft}s</span>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {gameStarted && currentCountry && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="glass-card max-w-2xl mx-auto p-6 mb-8"
-            style={{
-              transform: 'perspective(1000px) rotateX(5deg)',
-              transformStyle: 'preserve-3d',
-            }}
           >
             <div className="text-center mb-4">
-              <h2 className="text-2xl font-semibold text-emerald-100">Round {round}/10</h2>
+              <h2 className="text-2xl font-semibold text-emerald-100">Round {round}/{maxQuestions}</h2>
               <p className="text-xl text-emerald-400">Score: {score}</p>
             </div>
 
-            <div className="mb-6">
-              <motion.div
-                className="relative w-full aspect-video mb-4"
-                whileHover={{ scale: 1.05 }}
-                transition={{ type: "spring", stiffness: 300 }}
-              >
-                <Image
-                  src={currentCountry.flag}
-                  alt="Country Flag"
-                  fill
-                  className="object-contain"
-                  priority
-                />
-              </motion.div>
-            </div>
+            <motion.div
+              className="relative w-full aspect-video mb-4"
+              whileHover={{ scale: 1.05 }}
+              transition={{ type: "spring", stiffness: 300 }}
+            >
+              <Image
+                src={currentCountry.flag}
+                alt="Country Flag"
+                fill
+                className="object-contain"
+                priority
+              />
+            </motion.div>
 
             {!showAnswer ? (
               <div className="grid grid-cols-2 gap-4">
@@ -798,30 +914,88 @@ export default function Home() {
                   <motion.button
                     key={index}
                     onClick={() => handleGuess(option.name)}
-                    className="py-2 px-4 bg-emerald-900/30 hover:bg-emerald-800/30 text-emerald-100 rounded-lg transition-colors"
+                    className="py-2 px-4 bg-emerald-900/30 hover:bg-emerald-800/30 text-emerald-100 rounded-lg transition-colors relative overflow-hidden"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
                   >
-                    {option.name}
+                    <motion.div
+                      className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 to-cyan-500/20"
+                      initial={{ x: '-100%' }}
+                      whileHover={{ x: '100%' }}
+                      transition={{ duration: 0.5 }}
+                    />
+                    <span className="relative z-10">{option.name}</span>
                   </motion.button>
                 ))}
               </div>
             ) : (
               <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className={`text-center p-4 rounded-lg ${
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className={`text-center p-4 rounded-lg overflow-hidden relative ${
                   userGuess.toLowerCase() === currentCountry.name.toLowerCase()
                     ? 'bg-emerald-500/20 text-emerald-400'
                     : 'bg-red-500/20 text-red-400'
                 }`}
               >
-                <p className="text-xl font-semibold">
+                <motion.div
+                  className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 to-cyan-500/10"
+                  initial={{ x: '-100%' }}
+                  animate={{ x: '100%' }}
+                  transition={{ duration: 1, repeat: Infinity, repeatType: "reverse" }}
+                />
+                
+                <motion.p 
+                  className="text-xl font-semibold relative z-10"
+                  initial={{ scale: 0.5, rotate: -10 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ 
+                    type: "spring", 
+                    stiffness: 500,
+                    damping: 10
+                  }}
+                >
                   {userGuess.toLowerCase() === currentCountry.name.toLowerCase()
-                    ? 'Benar!'
-                    : 'Salah!'}
-                </p>
-                <p className="text-emerald-100">Jawaban yang benar: {currentCountry.name}</p>
+                    ? 'Benar! 🎉'
+                    : 'Salah! 😢'}
+                </motion.p>
+                
+                <motion.div
+                  className="relative z-10"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  <p className="text-emerald-100">
+                    Jawaban yang benar: {currentCountry.name}
+                  </p>
+                  {userGuess.toLowerCase() === currentCountry.name.toLowerCase() && (
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ delay: 0.3 }}
+                      className="mt-2"
+                    >
+                      <motion.div
+                        className="w-12 h-12 mx-auto"
+                        animate={{ 
+                          rotate: 360,
+                          scale: [1, 1.2, 1]
+                        }}
+                        transition={{ 
+                          duration: 1,
+                          repeat: Infinity,
+                          repeatType: "reverse"
+                        }}
+                      >
+                        <Trophy className="w-full h-full text-yellow-400" />
+                      </motion.div>
+                    </motion.div>
+                  )}
+                </motion.div>
               </motion.div>
             )}
           </motion.div>
@@ -865,47 +1039,83 @@ export default function Home() {
           </motion.div>
         )}
 
+        {/* Game Completion Effect */}
+        {showGameComplete && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.5 }}
+            className="fixed inset-0 flex items-center justify-center z-50"
+          >
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+            <motion.div
+              className="relative bg-gradient-to-br from-emerald-500 to-cyan-500 p-8 rounded-2xl text-center max-w-md mx-4"
+              initial={{ y: 50 }}
+              animate={{ y: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            >
+              <motion.div
+                className="text-6xl mb-4"
+                animate={{ 
+                  scale: [1, 1.2, 1],
+                  rotate: [0, 10, -10, 0]
+                }}
+                transition={{ 
+                  duration: 1,
+                  repeat: Infinity,
+                  repeatType: "reverse"
+                }}
+              >
+                🎉
+              </motion.div>
+              <h2 className="text-3xl font-bold text-white mb-2">Game Selesai!</h2>
+              <p className="text-xl text-white/90 mb-4">Skor Akhir: {score}</p>
+              <p className="text-lg text-white/80">Streak Terbaik: {maxStreak}</p>
+            </motion.div>
+          </motion.div>
+        )}
+
         {/* Confetti Effect */}
         {showConfetti && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 pointer-events-none"
+            className="fixed inset-0 pointer-events-none z-40"
           >
             {[...Array(50)].map((_, i) => (
               <motion.div
                 key={i}
-                className="absolute w-2 h-2 bg-yellow-400 rounded-full"
+                className="absolute w-2 h-2 rounded-full"
+                style={{
+                  backgroundColor: ['#fbbf24', '#34d399', '#60a5fa', '#f472b6'][Math.floor(Math.random() * 4)],
+                }}
                 initial={{
                   x: Math.random() * window.innerWidth,
                   y: -10,
                   scale: 0,
-                }}
-                animate={{
-                  y: window.innerHeight,
-                  scale: [0, 1, 0],
                   rotate: Math.random() * 360,
                 }}
+                animate={{
+                  y: window.innerHeight + 100,
+                  scale: [0, 1, 0],
+                  rotate: Math.random() * 360,
+                  x: [
+                    Math.random() * window.innerWidth,
+                    Math.random() * window.innerWidth,
+                    Math.random() * window.innerWidth,
+                  ],
+                }}
                 transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  delay: i * 0.1,
+                  duration: 2 + Math.random() * 2,
+                  repeat: 1,
+                  ease: "easeOut",
                 }}
               />
             ))}
           </motion.div>
         )}
 
-        {/* Credits Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center text-emerald-200 text-sm"
-        >
-          <p>Dikembangkan dengan ❤️ oleh reyhananf</p>
-          <p className="mt-2">© 2024 Tebak Bendera Negara. All rights reserved.</p>
-        </motion.div>
       </div>
     </main>
   );
