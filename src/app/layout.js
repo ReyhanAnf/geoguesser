@@ -1,20 +1,16 @@
-import { Inter } from "next/font/google";
-import "./globals.css";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-});
+import './globals.css';
+import GoogleMapsScript from '@/components/GoogleMapsScript';
 
 export const metadata = {
-  title: "GeoGuesser AI - Tebak Lokasi Dunia",
-  description: "Permainan tebak lokasi foto dari seluruh dunia. Tebak seakurat mungkin!",
+  title: 'GeoGuesser AI',
+  description: 'Test your geography knowledge with AI-powered location guessing!',
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="id">
-      <body className={`${inter.variable} font-sans antialiased`}>
+    <html lang="en">
+      <body>
+        <GoogleMapsScript />
         {children}
       </body>
     </html>

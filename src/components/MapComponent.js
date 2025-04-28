@@ -1,90 +1,90 @@
 'use client';
 
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { useEffect } from 'react';
-
-// Fix for Leaflet marker icons
-const fixLeafletIcons = () => {
-  delete L.Icon.Default.prototype._getIconUrl;
-  L.Icon.Default.mergeOptions({
-    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-  });
-};
-
-// Component to handle map click events
-const MapClickHandler = ({ onMapClick }) => {
-  const map = useMap();
-
-  useEffect(() => {
-    if (!map) return;
-
-    const handleClick = (e) => {
-      onMapClick(e.latlng);
-    };
-
-    map.on('click', handleClick);
-    return () => {
-      map.off('click', handleClick);
-    };
-  }, [map, onMapClick]);
-
-  return null;
-};
 
 const MapComponent = ({ 
-  center, 
-  zoom, 
+  center = [0, 0], 
+  zoom = 2, 
   onMapClick, 
-  userGuess, 
-  currentLocation,
-  distance,
-  accuracy
+  guessMarker = null,
+  actualMarker = null,
+  showGuessLine = false
 }) => {
+  const mapRef = useRef(null);
+  const mapInstance = useRef(null);
+  const markersRef = useRef({
+    guess: null,
+    actual: null,
+    line: null
+  });
+
   useEffect(() => {
-    fixLeafletIcons();
+    if (!mapRef.current) return;
+
+    // Initialize map
+    mapInstance.current = L.map(mapRef.current).setView(center, zoom);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(mapInstance.current);
+
+    // Add click handler
+    if (onMapClick) {
+      mapInstance.current.on('click', (e) => {
+        onMapClick([e.latlng.lat, e.latlng.lng]);
+      });
+    }
+
+    return () => {
+      mapInstance.current.remove();
+    };
   }, []);
 
+  // Update markers when props change
+  useEffect(() => {
+    if (!mapInstance.current) return;
+
+    // Remove existing markers
+    Object.values(markersRef.current).forEach(marker => {
+      if (marker) marker.remove();
+    });
+
+    // Add guess marker if provided
+    if (guessMarker) {
+      markersRef.current.guess = L.marker(guessMarker, {
+        icon: L.divIcon({
+          className: 'guess-marker',
+          html: '<div class="w-4 h-4 bg-blue-500 rounded-full border-2 border-white"></div>'
+        })
+      }).addTo(mapInstance.current);
+    }
+
+    // Add actual marker if provided
+    if (actualMarker) {
+      markersRef.current.actual = L.marker(actualMarker, {
+        icon: L.divIcon({
+          className: 'actual-marker',
+          html: '<div class="w-4 h-4 bg-red-500 rounded-full border-2 border-white"></div>'
+        })
+      }).addTo(mapInstance.current);
+    }
+
+    // Add line between markers if both exist and showGuessLine is true
+    if (showGuessLine && guessMarker && actualMarker) {
+      markersRef.current.line = L.polyline([guessMarker, actualMarker], {
+        color: '#3b82f6',
+        weight: 2,
+        dashArray: '5, 10'
+      }).addTo(mapInstance.current);
+    }
+  }, [guessMarker, actualMarker, showGuessLine]);
+
   return (
-    <div className="h-[400px] w-full rounded-lg overflow-hidden shadow-lg">
-      <MapContainer
-        center={center}
-        zoom={zoom}
-        style={{ height: '100%', width: '100%' }}
-      >
-        <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        />
-        
-        {userGuess && (
-          <Marker position={userGuess}>
-            <Popup>
-              <div className="text-sm">
-                <p className="font-semibold">Tebakan Anda</p>
-                <p>Jarak: {distance.toFixed(1)} km</p>
-                <p>Akurasi: {accuracy.toFixed(1)}%</p>
-              </div>
-            </Popup>
-          </Marker>
-        )}
-
-        {currentLocation && (
-          <Marker position={currentLocation}>
-            <Popup>
-              <div className="text-sm">
-                <p className="font-semibold">Lokasi Sebenarnya</p>
-              </div>
-            </Popup>
-          </Marker>
-        )}
-
-        <MapClickHandler onMapClick={onMapClick} />
-      </MapContainer>
-    </div>
+    <div 
+      ref={mapRef} 
+      className="w-full h-[400px] rounded-lg overflow-hidden"
+    />
   );
 };
 
