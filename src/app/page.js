@@ -1116,6 +1116,24 @@ export default function Home() {
           </motion.div>
         )}
 
+        {/* Footer with Credit */}
+        <motion.footer
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-center mt-12 mb-4"
+        >
+          <p className="text-emerald-100/70 text-sm">
+            ©️{' '}
+            <a
+              href="https://github.com/reyhananf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-cyan-400 hover:text-cyan-300 transition-colors"
+            >
+              Reyhananf
+            </a>
+          </p>
+        </motion.footer>
       </div>
     </main>
   );
