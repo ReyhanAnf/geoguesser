@@ -1,8 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
+import useSound from 'use-sound';
+import { Share2, Trophy, BarChart2, Globe } from 'lucide-react';
+
+// Import sound effects
+const correctSound = '/sounds/correct.mp3';
+const wrongSound = '/sounds/wrong.mp3';
 
 // Daftar lengkap negara dan bendera
 const countries = [
@@ -200,7 +206,7 @@ const countries = [
   { name: 'Zimbabwe', code: 'ZW', flag: 'https://flagcdn.com/zw.svg', region: 'Africa' }
 ];
 
-// Daftar gambar landmark negara
+// Daftar gambar landmark negara yang valid
 const countryLandmarks = [
   { country: 'Indonesia', image: 'https://images.pexels.com/photos/1239162/pexels-photo-1239162.jpeg', name: 'Monumen Nasional' },
   { country: 'France', image: 'https://images.pexels.com/photos/338515/pexels-photo-338515.jpeg', name: 'Menara Eiffel' },
@@ -211,7 +217,53 @@ const countryLandmarks = [
   { country: 'Egypt', image: 'https://images.pexels.com/photos/71241/pexels-photo-71241.jpeg', name: 'Piramida Giza' },
   { country: 'Brazil', image: 'https://images.pexels.com/photos/1450353/pexels-photo-1450353.jpeg', name: 'Christ the Redeemer' },
   { country: 'Australia', image: 'https://images.pexels.com/photos/2662116/pexels-photo-2662116.jpeg', name: 'Sydney Opera House' },
-  { country: 'Japan', image: 'https://images.pexels.com/photos/161251/pexels-photo-161251.jpeg', name: 'Gunung Fuji' }
+  { country: 'Japan', image: 'https://images.pexels.com/photos/931018/pexels-photo-931018.jpeg', name: 'Gunung Fuji' }
+];
+
+// Daftar fakta unik negara
+const countryFacts = [
+  { country: 'Indonesia', fact: 'Memiliki lebih dari 17.000 pulau, menjadikannya negara kepulauan terbesar di dunia.' },
+  { country: 'Japan', fact: 'Memiliki lebih dari 5 juta mesin penjual otomatis, menjual berbagai macam barang termasuk telur dan payung.' },
+  { country: 'Brazil', fact: 'Memiliki hutan hujan Amazon yang merupakan hutan hujan terbesar di dunia.' },
+  { country: 'Iceland', fact: 'Tidak memiliki nyamuk, menjadikannya satu-satunya negara di dunia tanpa nyamuk.' },
+  { country: 'Canada', fact: 'Memiliki garis pantai terpanjang di dunia, lebih dari 202.000 kilometer.' },
+  { country: 'Russia', fact: 'Memiliki 11 zona waktu, lebih banyak dari negara manapun di dunia.' },
+  { country: 'Australia', fact: 'Memiliki lebih banyak unta liar daripada unta di Timur Tengah.' },
+  { country: 'South Africa', fact: 'Satu-satunya negara di dunia yang memiliki 3 ibu kota: Pretoria, Cape Town, dan Bloemfontein.' },
+  { country: 'Vatican City', fact: 'Negara terkecil di dunia, dengan luas hanya 0.44 kilometer persegi.' },
+  { country: 'China', fact: 'Memiliki dinding terpanjang di dunia, Tembok Besar China, dengan panjang lebih dari 21.000 kilometer.' }
+];
+
+// Tambahkan array untuk fitur-fitur game
+const gameFeatures = [
+  {
+    title: 'Mode Kesulitan',
+    description: 'Pilih tingkat kesulitan yang sesuai dengan kemampuanmu, dari mudah hingga sulit.',
+    icon: '🎯'
+  },
+  {
+    title: 'Statistik Lengkap',
+    description: 'Pantau perkembanganmu dengan statistik permainan yang detail.',
+    icon: '📊'
+  },
+  {
+    title: 'Fakta Unik',
+    description: 'Pelajari fakta menarik tentang berbagai negara di dunia.',
+    icon: '🌍'
+  },
+  {
+    title: 'Efek Visual',
+    description: 'Nikmati pengalaman bermain yang menyenangkan dengan efek visual dan suara.',
+    icon: '✨'
+  }
+];
+
+// Tambahkan array untuk hero text
+const heroTexts = [
+  "Tebak Bendera Negara",
+  "Uji Pengetahuanmu",
+  "Jelajahi Dunia",
+  "Belajar Sambil Bermain"
 ];
 
 export default function Home() {
@@ -225,6 +277,22 @@ export default function Home() {
   const [playerName, setPlayerName] = useState('');
   const [showNameInput, setShowNameInput] = useState(true);
   const [answerOptions, setAnswerOptions] = useState([]);
+  const [playCorrect] = useSound(correctSound);
+  const [playWrong] = useSound(wrongSound);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [isCorrect, setIsCorrect] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [difficulty, setDifficulty] = useState('medium');
+  const [gameStats, setGameStats] = useState({
+    totalGames: 0,
+    totalScore: 0,
+    averageScore: 0,
+    mostMissedCountries: {},
+    accuracy: 0
+  });
+  const [showStats, setShowStats] = useState(false);
+  const [currentFact, setCurrentFact] = useState(0);
+  const [currentHeroText, setCurrentHeroText] = useState(0);
 
   // Load leaderboard dari localStorage
   useEffect(() => {
@@ -241,6 +309,30 @@ export default function Home() {
     }
   }, [leaderboard]);
 
+  // Auto-rotate carousel
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % countries.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Rotate facts
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentFact((prev) => (prev + 1) % countryFacts.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Rotate hero text
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentHeroText((prev) => (prev + 1) % heroTexts.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
   const startGame = () => {
     if (!playerName.trim()) return;
     setShowNameInput(false);
@@ -256,18 +348,9 @@ export default function Home() {
     setShowAnswer(false);
     setUserGuess('');
 
-    // Generate pilihan jawaban yang tidak termasuk jawaban yang benar
-    const wrongOptions = countries
-      .filter(country => country.code !== selectedCountry.code)
-      .sort(() => Math.random() - 0.5)
-      .slice(0, 3)
-      .map(country => country.name);
-
-    // Tambahkan jawaban yang benar ke pilihan
-    const allOptions = [...wrongOptions, selectedCountry.name]
-      .sort(() => Math.random() - 0.5);
-
-    setAnswerOptions(allOptions);
+    // Generate pilihan jawaban berdasarkan tingkat kesulitan
+    const options = getAnswerOptions(selectedCountry);
+    setAnswerOptions(options);
   };
 
   const handleGuess = (guess) => {
@@ -276,19 +359,31 @@ export default function Home() {
     setUserGuess(guess);
     setShowAnswer(true);
     
-    if (guess.toLowerCase() === currentCountry.name.toLowerCase()) {
+    const isCorrect = guess.toLowerCase() === currentCountry.name.toLowerCase();
+    
+    if (isCorrect) {
       setScore(score + 1);
+      setIsCorrect(true);
+      setShowConfetti(true);
+      playCorrect();
+      setTimeout(() => {
+        setShowConfetti(false);
+      }, 2000);
+    } else {
+      setIsCorrect(false);
+      playWrong();
     }
+
+    updateStats(isCorrect, currentCountry.name);
 
     setTimeout(() => {
       if (round < 10) {
         setRound(round + 1);
         loadNewCountry();
       } else {
-        // Game selesai, update leaderboard
         const newScore = {
           name: playerName,
-          score: score + (guess.toLowerCase() === currentCountry.name.toLowerCase() ? 1 : 0),
+          score: score + (isCorrect ? 1 : 0),
           date: new Date().toLocaleDateString()
         };
         setLeaderboard(prev => {
@@ -312,68 +407,356 @@ export default function Home() {
     setRound(1);
   };
 
+  const getAnswerOptions = (correctCountry) => {
+    let options = [];
+    switch (difficulty) {
+      case 'easy':
+        // Hanya negara dari region yang sama
+        options = countries
+          .filter(country => country.region === correctCountry.region)
+          .sort(() => Math.random() - 0.5)
+          .slice(0, 3);
+        break;
+      case 'medium':
+        // Campuran negara dari region yang sama dan berbeda
+        options = countries
+          .sort(() => Math.random() - 0.5)
+          .slice(0, 3);
+        break;
+      case 'hard':
+        // Semua negara acak
+        options = countries
+          .sort(() => Math.random() - 0.5)
+          .slice(0, 3);
+        break;
+    }
+    return [...options, correctCountry].sort(() => Math.random() - 0.5);
+  };
+
+  const updateStats = (correct, country) => {
+    setGameStats(prev => {
+      const newStats = { ...prev };
+      newStats.totalGames += 1;
+      newStats.totalScore += correct ? 1 : 0;
+      newStats.averageScore = newStats.totalScore / newStats.totalGames;
+      newStats.accuracy = (newStats.totalScore / newStats.totalGames) * 100;
+      
+      if (!correct) {
+        newStats.mostMissedCountries[country] = (newStats.mostMissedCountries[country] || 0) + 1;
+      }
+      
+      return newStats;
+    });
+  };
+
+  const shareScore = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: 'Tebak Bendera Negara',
+        text: `Saya baru saja mendapatkan skor ${score} di Tebak Bendera Negara!`,
+        url: window.location.href
+      });
+    }
+  };
+
+  const scrollToNameInput = () => {
+    const nameInputElement = document.getElementById('masukan-nama');
+    if (nameInputElement) {
+      nameInputElement.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
-    <main className="min-h-screen p-4 md:p-8 bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900">
+    <main className="min-h-screen p-4 md:p-8 bg-gradient-to-br from-black via-emerald-900 to-cyan-500">
       <div className="max-w-6xl mx-auto">
+        {/* Hero Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-8"
+          className="text-center mb-12 relative h-64 md:h-96 flex items-center justify-center"
         >
-          <h1 className="text-4xl md:text-6xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">
-            Tebak Bendera Negara
-          </h1>
-          <p className="text-lg md:text-xl text-gray-300">
-            Uji pengetahuanmu tentang bendera negara-negara di dunia!
-          </p>
+          {/* Background Pattern */}
+          <div className="absolute inset-0 overflow-hidden">
+            <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/50 to-transparent" />
+          </div>
+
+          {/* Animated Text */}
+          <div className="relative z-10">
+            <AnimatePresence mode="wait">
+              <motion.h1
+                key={currentHeroText}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.5 }}
+                className="text-4xl md:text-6xl lg:text-7xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 via-cyan-300 to-cyan-200"
+              >
+                {heroTexts[currentHeroText]}
+              </motion.h1>
+            </AnimatePresence>
+
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className="text-lg md:text-xl text-cyan-100 mb-8"
+            >
+              Uji pengetahuanmu tentang bendera negara-negara di dunia!
+            </motion.p>
+
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="inline-block"
+            >
+              <button
+                onClick={() => {
+                  setShowNameInput(true);
+                  setGameStarted(false);
+                  setTimeout(scrollToNameInput, 100);
+                }}
+                className="glass-button text-lg px-8 py-3 bg-gradient-to-r from-emerald-600 to-cyan-500 hover:from-emerald-500 hover:to-cyan-400"
+              >
+                Mulai Bermain
+              </button>
+            </motion.div>
+          </div>
+
+          {/* Decorative Elements */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1 }}
+            className="absolute bottom-0 left-0 right-0 flex justify-center space-x-4"
+          >
+            {heroTexts.map((_, index) => (
+              <motion.div
+                key={index}
+                className={`w-2 h-2 rounded-full ${
+                  index === currentHeroText ? 'bg-cyan-400' : 'bg-cyan-400/30'
+                }`}
+                animate={{
+                  scale: index === currentHeroText ? 1.2 : 1,
+                }}
+                transition={{ duration: 0.3 }}
+              />
+            ))}
+          </motion.div>
         </motion.div>
 
         {!gameStarted && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            {countryLandmarks.map((landmark, index) => (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="relative h-64 md:h-96 mb-12 overflow-hidden rounded-2xl"
+          >
+            <AnimatePresence mode="wait">
               <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="glass-card overflow-hidden"
+                key={currentSlide}
+                initial={{ opacity: 0, scale: 1.1 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ duration: 0.5 }}
+                className="absolute inset-0"
               >
-                <div className="relative h-48">
-                  <Image
-                    src={landmark.image}
-                    alt={landmark.name}
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-                <div className="p-4">
-                  <h3 className="text-lg font-semibold text-white">{landmark.name}</h3>
-                  <p className="text-gray-300">{landmark.country}</p>
+                <Image
+                  src={countries[currentSlide].flag}
+                  alt={`Flag of ${countries[currentSlide].name}`}
+                  fill
+                  className="object-cover"
+                  style={{ transform: 'perspective(1000px) rotateY(10deg)' }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-r from-black/50 to-transparent" />
+                <div className="absolute bottom-0 left-0 p-6 text-white">
+                  <h2 className="text-2xl md:text-4xl font-bold mb-2">
+                    {countries[currentSlide].name}
+                  </h2>
+                  <p className="text-sm md:text-lg opacity-90">
+                    Region: {countries[currentSlide].region}
+                  </p>
                 </div>
               </motion.div>
-            ))}
+            </AnimatePresence>
+          </motion.div>
+        )}
+        
+        {/* Features Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12"
+        >
+          {gameFeatures.map((feature, index) => (
+            <motion.div
+              key={index}
+              whileHover={{ y: -5 }}
+              className="glass-card p-6"
+            >
+              <div className="text-4xl mb-4">{feature.icon}</div>
+              <h3 className="text-xl font-semibold text-white mb-2">{feature.title}</h3>
+              <p className="text-gray-300">{feature.description}</p>
+            </motion.div>
+          ))}
+        </motion.div>
+
+        {/* How to Play Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card max-w-3xl mx-auto p-8 mb-12"
+        >
+          <h2 className="text-2xl font-semibold text-white mb-6 text-center">Cara Bermain</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="text-center">
+              <div className="text-4xl mb-4">1️⃣</div>
+              <h3 className="text-lg font-medium text-white mb-2">Pilih Mode</h3>
+              <p className="text-gray-300">Pilih tingkat kesulitan yang sesuai</p>
+            </div>
+            <div className="text-center">
+              <div className="text-4xl mb-4">2️⃣</div>
+              <h3 className="text-lg font-medium text-white mb-2">Tebak Bendera</h3>
+              <p className="text-gray-300">Tebak negara dari bendera yang ditampilkan</p>
+            </div>
+            <div className="text-center">
+              <div className="text-4xl mb-4">3️⃣</div>
+              <h3 className="text-lg font-medium text-white mb-2">Raih Skor</h3>
+              <p className="text-gray-300">Dapatkan skor tertinggi dan bagikan ke teman</p>
+            </div>
           </div>
+        </motion.div>
+
+          {/* Country Facts Carousel */}
+          {!gameStarted && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass-card max-w-2xl mx-auto p-6 mb-8"
+            style={{
+              transform: 'perspective(1000px) rotateX(5deg)',
+              transformStyle: 'preserve-3d',
+            }}
+          >
+            <div className="flex items-center mb-4">
+              <Globe className="w-6 h-6 text-emerald-400 mr-2" />
+              <h2 className="text-xl font-semibold text-white">Fakta Unik Negara</h2>
+            </div>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentFact}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="text-white"
+              >
+                <h3 className="text-lg font-medium mb-2">{countryFacts[currentFact].country}</h3>
+                <p className="text-gray-300">{countryFacts[currentFact].fact}</p>
+              </motion.div>
+            </AnimatePresence>
+          </motion.div>
         )}
 
+        {/* Name Input Form */}
         {showNameInput && (
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             className="glass-card max-w-md mx-auto p-6 mb-8"
+            id="masukan-nama"
           >
-            <h2 className="text-2xl font-semibold mb-4 text-white">Masukkan Nama Kamu</h2>
+            <h2 className="text-2xl font-semibold mb-4 text-emerald-100">Masukkan Nama Kamu</h2>
             <input
               type="text"
               value={playerName}
               onChange={(e) => setPlayerName(e.target.value)}
               placeholder="Nama kamu..."
-              className="w-full px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-400 mb-4"
+              className="w-full px-4 py-2 rounded-lg bg-emerald-900/30 border border-emerald-500/20 text-emerald-100 placeholder-emerald-300/50 mb-4"
             />
             <button
               onClick={startGame}
-              className="w-full py-2 px-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 transition-colors"
+              className="w-full py-2 px-4 bg-gradient-to-r from-emerald-600 to-cyan-500 text-white rounded-lg hover:from-emerald-500 hover:to-cyan-400 transition-colors"
             >
-              Mulai Bermain
+              Lanjutkan
+            </button>
+          </motion.div>
+        )}
+
+        {/* Difficulty Selector */}
+        {!gameStarted && !showNameInput && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass-card max-w-md mx-auto p-6 mb-8"
+          >
+            <h2 className="text-2xl font-semibold mb-4 text-white">Pilih Tingkat Kesulitan</h2>
+            <div className="grid grid-cols-3 gap-4">
+              {['easy', 'medium', 'hard'].map((level) => (
+                <button
+                  key={level}
+                  onClick={() => setDifficulty(level)}
+                  className={`py-2 px-4 rounded-lg transition-all ${
+                    difficulty === level
+                      ? 'bg-gradient-to-r from-emerald-500 to-cyan-300 text-emerald-100'
+                      : 'bg-emerald-900/30 text-emerald-100 hover:bg-emerald-800/30'
+                  }`}
+                >
+                  {level.charAt(0).toUpperCase() + level.slice(1)}
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Game Stats */}
+        {showStats && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="glass-card max-w-md mx-auto p-6 mb-8"
+          >
+            <div className="flex items-center mb-4">
+              <BarChart2 className="w-6 h-6 text-emerald-400 mr-2" />
+              <h2 className="text-xl font-semibold text-white">Statistik Permainan</h2>
+            </div>
+            <div className="space-y-2 text-white">
+              <p>Total Permainan: {gameStats.totalGames}</p>
+              <p>Skor Rata-rata: {gameStats.averageScore.toFixed(1)}</p>
+              <p>Akurasi: {gameStats.accuracy.toFixed(1)}%</p>
+              <div>
+                <p className="font-medium mb-2">Negara yang Paling Sering Salah:</p>
+                {Object.entries(gameStats.mostMissedCountries)
+                  .sort(([,a], [,b]) => b - a)
+                  .slice(0, 3)
+                  .map(([country, count]) => (
+                    <p key={country} className="text-gray-300">
+                      {country}: {count} kali
+                    </p>
+                  ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Share Button */}
+        {!gameStarted && !showNameInput && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center mt-8 space-x-4"
+          >
+            <button
+              onClick={() => setShowStats(!showStats)}
+              className="glass-button inline-flex items-center"
+            >
+              <Trophy className="w-5 h-5 mr-2" />
+              Statistik
+            </button>
+            <button
+              onClick={shareScore}
+              className="glass-button inline-flex items-center"
+            >
+              <Share2 className="w-5 h-5 mr-2" />
+              Bagikan
             </button>
           </motion.div>
         )}
@@ -383,14 +766,22 @@ export default function Home() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="glass-card max-w-2xl mx-auto p-6 mb-8"
+            style={{
+              transform: 'perspective(1000px) rotateX(5deg)',
+              transformStyle: 'preserve-3d',
+            }}
           >
             <div className="text-center mb-4">
-              <h2 className="text-2xl font-semibold text-white">Round {round}/10</h2>
-              <p className="text-xl text-blue-400">Score: {score}</p>
+              <h2 className="text-2xl font-semibold text-emerald-100">Round {round}/10</h2>
+              <p className="text-xl text-emerald-400">Score: {score}</p>
             </div>
 
             <div className="mb-6">
-              <div className="relative w-full aspect-video mb-4">
+              <motion.div
+                className="relative w-full aspect-video mb-4"
+                whileHover={{ scale: 1.05 }}
+                transition={{ type: "spring", stiffness: 300 }}
+              >
                 <Image
                   src={currentCountry.flag}
                   alt="Country Flag"
@@ -398,19 +789,21 @@ export default function Home() {
                   className="object-contain"
                   priority
                 />
-              </div>
+              </motion.div>
             </div>
 
             {!showAnswer ? (
               <div className="grid grid-cols-2 gap-4">
                 {answerOptions.map((option, index) => (
-                  <button
+                  <motion.button
                     key={index}
-                    onClick={() => handleGuess(option)}
-                    className="py-2 px-4 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
+                    onClick={() => handleGuess(option.name)}
+                    className="py-2 px-4 bg-emerald-900/30 hover:bg-emerald-800/30 text-emerald-100 rounded-lg transition-colors"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                   >
-                    {option}
-                  </button>
+                    {option.name}
+                  </motion.button>
                 ))}
               </div>
             ) : (
@@ -419,7 +812,7 @@ export default function Home() {
                 animate={{ opacity: 1 }}
                 className={`text-center p-4 rounded-lg ${
                   userGuess.toLowerCase() === currentCountry.name.toLowerCase()
-                    ? 'bg-green-500/20 text-green-400'
+                    ? 'bg-emerald-500/20 text-emerald-400'
                     : 'bg-red-500/20 text-red-400'
                 }`}
               >
@@ -428,7 +821,7 @@ export default function Home() {
                     ? 'Benar!'
                     : 'Salah!'}
                 </p>
-                <p className="text-white">Jawaban yang benar: {currentCountry.name}</p>
+                <p className="text-emerald-100">Jawaban yang benar: {currentCountry.name}</p>
               </motion.div>
             )}
           </motion.div>
@@ -445,12 +838,12 @@ export default function Home() {
               {leaderboard.map((entry, index) => (
                 <div
                   key={index}
-                  className="flex justify-between items-center p-2 bg-white/5 rounded-lg"
+                  className="flex justify-between items-center p-2 bg-emerald-900/30 rounded-lg"
                 >
                   <span className="font-medium text-white">
                     {index + 1}. {entry.name}
                   </span>
-                  <span className="text-blue-400">{entry.score} poin</span>
+                  <span className="text-emerald-400">{entry.score} poin</span>
                 </div>
               ))}
             </div>
@@ -465,12 +858,54 @@ export default function Home() {
           >
             <button
               onClick={restartGame}
-              className="py-2 px-6 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:from-blue-600 hover:to-purple-600 transition-colors"
+              className="py-2 px-6 bg-gradient-to-r from-emerald-600 to-cyan-500 text-white rounded-lg hover:from-emerald-500 hover:to-cyan-400 transition-colors"
             >
               Main Lagi
             </button>
           </motion.div>
         )}
+
+        {/* Confetti Effect */}
+        {showConfetti && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 pointer-events-none"
+          >
+            {[...Array(50)].map((_, i) => (
+              <motion.div
+                key={i}
+                className="absolute w-2 h-2 bg-yellow-400 rounded-full"
+                initial={{
+                  x: Math.random() * window.innerWidth,
+                  y: -10,
+                  scale: 0,
+                }}
+                animate={{
+                  y: window.innerHeight,
+                  scale: [0, 1, 0],
+                  rotate: Math.random() * 360,
+                }}
+                transition={{
+                  duration: 2,
+                  repeat: Infinity,
+                  delay: i * 0.1,
+                }}
+              />
+            ))}
+          </motion.div>
+        )}
+
+        {/* Credits Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center text-emerald-200 text-sm"
+        >
+          <p>Dikembangkan dengan ❤️ oleh reyhananf</p>
+          <p className="mt-2">© 2024 Tebak Bendera Negara. All rights reserved.</p>
+        </motion.div>
       </div>
     </main>
   );
